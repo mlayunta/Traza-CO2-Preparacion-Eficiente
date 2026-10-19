@@ -1,0 +1,1305 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#059669" />
+  <meta name="description" content="TRAZA//CO2 — Suite de eficiencia en preparación de pedidos: enrutamiento, olas, KPIs, voice-picking y modo offline." />
+  <meta name="author" content="Miguel Ángel Layunta López" />
+  <title>TRAZA//CO2 · Eficiencia en Picking</title>
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" type="image/svg+xml" href="./icons/icon.svg" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js" crossorigin></script>
+  <script src="https://unpkg.com/recharts@2.7.2/umd/Recharts.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone@7.23.5/babel.min.js" crossorigin></script>
+
+  <style>
+    body { background: #020617; }
+    .route-anim { stroke-dasharray: 1600; stroke-dashoffset: 1600; animation: draw 1.5s ease forwards; }
+    @keyframes draw { to { stroke-dashoffset: 0; } }
+    .ping { animation: ping 1.8s ease-out infinite; }
+    @keyframes ping { 0% { opacity: .9; } 70% { opacity: 0; } 100% { opacity: 0; } }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel" data-presets="react">
+    var useState = React.useState, useEffect = React.useEffect;
+    var ResponsiveContainer = Recharts.ResponsiveContainer,
+        ComposedChart = Recharts.ComposedChart, AreaChart = Recharts.AreaChart, Area = Recharts.Area,
+        LineChart = Recharts.LineChart, Line = Recharts.Line,
+        BarChart = Recharts.BarChart, Bar = Recharts.Bar,
+        PieChart = Recharts.PieChart, Pie = Recharts.Pie, Cell = Recharts.Cell,
+        RadialBarChart = Recharts.RadialBarChart, RadialBar = Recharts.RadialBar,
+        PolarAngleAxis = Recharts.PolarAngleAxis,
+        XAxis = Recharts.XAxis, YAxis = Recharts.YAxis,
+        CartesianGrid = Recharts.CartesianGrid, Tooltip = Recharts.Tooltip, Legend = Recharts.Legend;
+
+    /* ============ ICONOS SVG PROPIOS (sin librerías externas) ============ */
+    var ICONS = {
+      dashboard: <g><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></g>,
+      scan: <g><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 12h10"/></g>,
+      route: <g><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/></g>,
+      barchart: <g><path d="M3 3v18h18"/><path d="M7 16v-6"/><path d="M12 16V8"/><path d="M17 16v-4"/></g>,
+      alert: <g><path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4"/><path d="M12 17h.01"/></g>,
+      plug: <g><path d="M9 2v6"/><path d="M15 2v6"/><path d="M6 8h12v4a6 6 0 0 1-12 0V8z"/><path d="M12 18v4"/></g>,
+      wifi: <g><path d="M2 8a15 15 0 0 1 20 0"/><path d="M5 12a10 10 0 0 1 14 0"/><path d="M8.5 15.5a5 5 0 0 1 7 0"/><path d="M12 19h.01"/></g>,
+      wifioff: <g><path d="M2 8a15 15 0 0 1 20 0"/><path d="M5 12a10 10 0 0 1 14 0"/><path d="M12 19h.01"/><path d="m2 2 20 20"/></g>,
+      package: <g><path d="M21 8 12 3 3 8v8l9 5 9-5V8z"/><path d="m3 8 9 5 9-5"/><path d="M12 13v8"/></g>,
+      check: <g><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></g>,
+      x: <g><circle cx="12" cy="12" r="9"/><path d="m9 9 6 6"/><path d="m15 9-6 6"/></g>,
+      clock: <g><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></g>,
+      users: <g><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M16 6a3 3 0 0 1 0 6"/><path d="M18 14a6 6 0 0 1 3 6"/></g>,
+      volume: <g><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 9a4 4 0 0 1 0 6"/><path d="M19 6a8 8 0 0 1 0 12"/></g>,
+      refresh: <g><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M3 21v-5h5"/></g>,
+      chevron: <g><path d="m9 6 6 6-6 6"/></g>,
+      trend: <g><path d="m3 17 6-6 4 4 8-8"/><path d="M15 7h6v6"/></g>,
+      target: <g><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></g>,
+      boxes: <g><rect x="3" y="12" width="8" height="8" rx="1"/><rect x="13" y="12" width="8" height="8" rx="1"/><rect x="8" y="3" width="8" height="8" rx="1"/></g>,
+      gauge: <g><path d="M12 14 16 9"/><path d="M4 18a9 9 0 1 1 16 0"/></g>,
+      warehouse: <g><path d="M3 21V9l9-5 9 5v12"/><path d="M3 21h18"/><path d="M7 21v-7h10v7"/></g>,
+      activity: <g><path d="M3 12h4l3 8 4-16 3 8h4"/></g>,
+      layers: <g><path d="m12 3 9 5-9 5-9-5 9-5z"/><path d="m3 13 9 5 9-5"/></g>,
+      database: <g><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></g>,
+      arrow: <g><path d="M4 12h16"/><path d="m14 6 6 6-6 6"/></g>,
+      pin: <g><path d="M12 21s7-6 7-11a7 7 0 1 0-14 0c0 5 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></g>,
+      search: <g><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></g>,
+      qr: <g><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><path d="M14 3h7v7"/><path d="M3 14h7v7"/></g>,
+      zap: <g><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"/></g>,
+      headphones: <g><path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4" height="6" rx="1"/><rect x="17" y="14" width="4" height="6" rx="1"/></g>,
+      truck: <g><path d="M2 7h11v9H2z"/><path d="M13 10h4l4 3v3h-8"/><circle cx="6" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></g>,
+      timer: <g><circle cx="12" cy="13" r="8"/><path d="M12 9v4"/><path d="M9 2h6"/></g>,
+      shield: <g><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6l-8-3z"/><path d="m9 12 2 2 4-4"/></g>,
+      cpu: <g><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></g>,
+      send: <g><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7z"/></g>,
+      calendar: <g><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 3v4M16 3v4"/><path d="M8 14h.01M12 14h.01M16 14h.01"/></g>,
+      waves: <g><path d="M2 8c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/><path d="M2 13c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/><path d="M2 18c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/></g>,
+      grad: <g><path d="m2 9 10-5 10 5-10 5L2 9z"/><path d="M6 11v5c0 1.5 3 3 6 3s6-1.5 6-3v-5"/></g>,
+      leaf: <g><path d="M4 20C3 12 9 4 20 4c0 11-8 17-16 16z"/><path d="M4 20c4-6 8-9 12-10"/></g>,
+      award: <g><circle cx="12" cy="9" r="6"/><path d="m9 14-2 8 5-3 5 3-2-8"/></g>,
+      play: <g><path d="M6 4l14 8-14 8V4z"/></g>,
+      plus: <g><path d="M12 5v14M5 12h14"/></g>
+    };
+
+    function Icon({ name, size, className }) {
+      return (
+        <svg xmlns="http://www.w3.org/2000/svg" width={size || 18} height={size || 18} viewBox="0 0 24 24"
+             fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+             strokeLinejoin="round" className={className || ''}>
+          {ICONS[name]}
+        </svg>
+      );
+    }
+
+    /* ============ DATOS ============ */
+    var TASKS = [
+      { loc: 'A-12-03', sku: 'SKU-4471-B', desc: 'Aceite de oliva 5L (pack 4)', qty: 12, zone: 'Seco', temp: 'Ambiente', weight: 'Pesado 18 kg' },
+      { loc: 'B-04-07', sku: 'SKU-9921-A', desc: 'Yogur griego pack 8', qty: 24, zone: 'Frío', temp: '2–6 °C', weight: 'Ligero' },
+      { loc: 'C-08-02', sku: 'SKU-1180-D', desc: 'Café molido 1kg', qty: 6, zone: 'Seco', temp: 'Ambiente', weight: 'Medio 6 kg' },
+      { loc: 'D-02-11', sku: 'SKU-7734-C', desc: 'Congelado: verduras 1kg', qty: 10, zone: 'Congelado', temp: '-18 °C', weight: 'Medio' },
+      { loc: 'A-15-09', sku: 'SKU-2055-E', desc: 'Detergente 3L', qty: 8, zone: 'Seco', temp: 'Ambiente', weight: 'Pesado 12 kg' }
+    ];
+
+    var PHASES = [
+      { key: 'despl', label: 'Desplazamiento', icon: 'pin', secs: 41 },
+      { key: 'busq', label: 'Búsqueda en estantería', icon: 'search', secs: 9 },
+      { key: 'esc', label: 'Escaneo de producto', icon: 'scan', secs: 5, scan: true },
+      { key: 'esc', label: 'Escaneo de ubicación', icon: 'qr', secs: 5, scan: true },
+      { key: 'dep', label: 'Depósito en contenedor', icon: 'package', secs: 11 }
+    ];
+
+    var LPH_DATA = [
+      { h: '07:00', lph: 108, obj: 130 }, { h: '08:00', lph: 126, obj: 130 },
+      { h: '09:00', lph: 141, obj: 130 }, { h: '10:00', lph: 149, obj: 130 },
+      { h: '11:00', lph: 152, obj: 130 }, { h: '12:00', lph: 138, obj: 130 },
+      { h: '13:00', lph: 121, obj: 130 }, { h: '14:00', lph: 144, obj: 130 },
+      { h: '15:00', lph: 156, obj: 130 }, { h: '16:00', lph: 147, obj: 130 }
+    ];
+
+    var CYCLE_DATA = [
+      { h: '08', despl: 44, busq: 12, esc: 8, emb: 14 }, { h: '09', despl: 41, busq: 10, esc: 7, emb: 15 },
+      { h: '10', despl: 38, busq: 9, esc: 6, emb: 14 }, { h: '11', despl: 36, busq: 8, esc: 6, emb: 13 },
+      { h: '12', despl: 40, busq: 11, esc: 7, emb: 15 }, { h: '13', despl: 45, busq: 13, esc: 8, emb: 16 },
+      { h: '14', despl: 39, busq: 9, esc: 6, emb: 14 }, { h: '15', despl: 35, busq: 8, esc: 6, emb: 13 }
+    ];
+
+    var OPERATORS = [
+      { name: 'L. García', v: 152 }, { name: 'M. Torres', v: 147 },
+      { name: 'J. Ruiz', v: 141 }, { name: 'A. Silva', v: 138 }, { name: 'K. Diallo', v: 133 }
+    ];
+
+    var ORDER_STATUS = [
+      { name: 'Completados', value: 214, color: '#10b981' }, { name: 'En curso', value: 96, color: '#0ea5e9' },
+      { name: 'Pendientes', value: 142, color: '#475569' }, { name: 'Con incidencia', value: 11, color: '#ef4444' }
+    ];
+
+    var BOTTLENECKS = [
+      { zona: 'Pasillo 3 · Frío', pct: 82 }, { zona: 'Muelle 2', pct: 64 },
+      { zona: 'Zona pesada', pct: 47 }, { zona: 'Pasillo 7', pct: 31 }
+    ];
+
+    var LATENCY = [
+      { t: '08:00', wms: 42, erp: 88 }, { t: '08:30', wms: 38, erp: 95 },
+      { t: '09:00', wms: 45, erp: 82 }, { t: '09:30', wms: 41, erp: 79 },
+      { t: '10:00', wms: 52, erp: 91 }, { t: '10:30', wms: 39, erp: 76 },
+      { t: '11:00', wms: 44, erp: 84 }, { t: '11:30', wms: 40, erp: 80 }
+    ];
+
+    var PIPELINE = [
+      { id: 'ORD-88412', cliente: 'Mercadona L-204', estado: 'En curso', prog: 72, sla: '18 min', tone: 'sky' },
+      { id: 'ORD-88413', cliente: 'Carrefour C-118', estado: 'En curso', prog: 41, sla: '34 min', tone: 'sky' },
+      { id: 'ORD-88409', cliente: 'Amazon MAD5', estado: 'Ola #42', prog: 88, sla: '6 min', tone: 'amber' },
+      { id: 'ORD-88401', cliente: 'Día S. Martín', estado: 'Completado', prog: 100, sla: '—', tone: 'emerald' },
+      { id: 'ORD-88415', cliente: 'Lidl V-77', estado: 'Incidencia', prog: 35, sla: '44 min', tone: 'red' }
+    ];
+
+    var KPI_TABLE = [
+      { cat: 'Productividad', kpi: 'Líneas/hora (LPH)', formula: 'Líneas ÷ horas efectivas', target: '130–160', value: '142', st: 'ok' },
+      { cat: 'Productividad', kpi: 'Unidades/hora (UPH)', formula: 'Unidades ÷ horas efectivas', target: '≥ 380', value: '412', st: 'ok' },
+      { cat: 'Productividad', kpi: 'Densidad de picking', formula: 'Líneas ÷ m recorridos', target: '≥ 3,5', value: '4,1', st: 'ok' },
+      { cat: 'Productividad', kpi: '% tiempo de desplazamiento', formula: 'Tdespl ÷ Tciclo × 100', target: '< 45 %', value: '41 %', st: 'ok' },
+      { cat: 'Tiempo', kpi: 'Tiempo de ciclo por línea', formula: 'Tdespl + Tbús + Tesc + Tdep', target: '≤ 95 s', value: '101 s', st: 'warn' },
+      { cat: 'Tiempo', kpi: 'Lead time pedido → expedición', formula: 't_expedición − t_recepción', target: '≤ 90 min', value: '74 min', st: 'ok' },
+      { cat: 'Tiempo', kpi: 'Completitud de ola', formula: 'Tfin − Tinicio de ola', target: '≤ 30 min', value: '26 min', st: 'ok' },
+      { cat: 'Calidad', kpi: 'Precisión de picking', formula: '1 − (errores ÷ líneas)', target: '≥ 99,5 %', value: '99,4 %', st: 'warn' },
+      { cat: 'Calidad', kpi: 'Perfect Order Rate (POR)', formula: 'Pedidos perfectos ÷ total', target: '≥ 98 %', value: '97,2 %', st: 'warn' },
+      { cat: 'Calidad', kpi: 'Exactitud de inventario (IRA)', formula: '1 − (|Δ stock| ÷ unidades)', target: '≥ 99 %', value: '99,3 %', st: 'ok' },
+      { cat: 'Calidad', kpi: 'Roturas / 1.000 líneas', formula: 'Inc. stock ÷ líneas × 1.000', target: '≤ 5', value: '3,2', st: 'ok' },
+      { cat: 'Coste', kpi: 'Coste por línea', formula: 'Coste operativo ÷ líneas', target: '≤ 0,42 €', value: '0,38 €', st: 'ok' },
+      { cat: 'Coste', kpi: 'Coste por pedido', formula: 'Coste operativo ÷ pedidos', target: '≤ 3,10 €', value: '2,87 €', st: 'ok' },
+      { cat: 'Recursos', kpi: 'Utilización de operario', formula: 'Tvalor ÷ Tturno', target: '60–75 %', value: '68 %', st: 'ok' },
+      { cat: 'Recursos', kpi: 'Disponibilidad EPP/maquinaria', formula: 'Toperativo ÷ Tplanificado', target: '≥ 95 %', value: '96 %', st: 'ok' },
+      { cat: 'Servicio', kpi: 'Cumplimiento SLA (cut-off)', formula: 'Pedidos a tiempo ÷ total', target: '≥ 99 %', value: '98,6 %', st: 'warn' },
+      { cat: 'Servicio', kpi: 'MTTR incidencias', formula: 'Σ t. resolución ÷ n. incid.', target: '≤ 10 min', value: '7 min', st: 'ok' },
+      { cat: 'Sostenibilidad', kpi: 'CO₂ evitado por rutas óptimas', formula: 'Δm × factor kgCO₂/kWh', target: '≥ 100 kg/sem', value: '128 kg', st: 'ok' }
+    ];
+
+    var STRATEGIES = {
+      s: { label: 'S-Shape (serpiente)', dist: 148, time: 74, red: 31, pts: '60,340 60,110 580,110 580,180 60,180 60,250 580,250 580,320 600,320 600,60 560,60' },
+      gap: { label: 'Largest-Gap', dist: 126, time: 63, red: 41, pts: '60,340 60,110 420,110 300,110 300,180 580,180 450,180 450,250 200,250 580,250 580,320 600,320 600,60 560,60' },
+      ret: { label: 'Return (ida y vuelta)', dist: 158, time: 79, red: 26, pts: '60,340 60,60 60,110 300,110 60,110 60,180 420,180 60,180 60,250 200,250 60,250 60,320 580,320 580,60 560,60' },
+      aisle: { label: 'In-the-Aisle (óptimo)', dist: 112, time: 56, red: 48, pts: '60,340 60,110 260,110 260,180 180,180 180,250 480,250 480,180 580,180 580,320 600,320 600,60 560,60' }
+    };
+
+    var PICK_POINTS = [{ x: 300, y: 110 }, { x: 420, y: 180 }, { x: 200, y: 250 }, { x: 560, y: 320 }];
+
+    var PENDING_ORDERS = [
+      { id: 'ORD-88420', cliente: 'Mercadona L-204', lineas: 18, und: 96, zona: 'Seco', temp: 'Ambiente', cutoff: '14:00', prio: 'Alta' },
+      { id: 'ORD-88421', cliente: 'Carrefour C-118', lineas: 12, und: 60, zona: 'Frío', temp: '2–6 °C', cutoff: '13:30', prio: 'Alta' },
+      { id: 'ORD-88422', cliente: 'Amazon MAD5', lineas: 26, und: 26, zona: 'Mixto', temp: 'Ambiente', cutoff: '16:00', prio: 'Media' },
+      { id: 'ORD-88423', cliente: 'Lidl V-77', lineas: 9, und: 44, zona: 'Pesado', temp: 'Ambiente', cutoff: '15:00', prio: 'Media' },
+      { id: 'ORD-88424', cliente: 'Día S. Martín', lineas: 15, und: 80, zona: 'Frío', temp: '2–6 °C', cutoff: '13:30', prio: 'Alta' },
+      { id: 'ORD-88425', cliente: 'Aldi N-31', lineas: 21, und: 110, zona: 'Seco', temp: 'Ambiente', cutoff: '17:00', prio: 'Baja' },
+      { id: 'ORD-88426', cliente: 'Condis G-09', lineas: 7, und: 28, zona: 'Congelado', temp: '-18 °C', cutoff: '14:30', prio: 'Alta' },
+      { id: 'ORD-88427', cliente: 'Gimeno G-55', lineas: 13, und: 52, zona: 'Mixto', temp: 'Ambiente', cutoff: '16:30', prio: 'Baja' }
+    ];
+
+    var TRAIN_MODULES = [
+      { t: 'Seguridad y EPP', icon: 'shield', desc: 'Prevención de riesgos en pasillos, tránsito de carretillas y equipo de protección.', pts: ['Identificar puntos de riesgo en pasillos', 'Normas de cruce con carretillas', 'Uso de calzado, chaleco y guantes'], practice: false },
+      { t: 'La terminal TRAZA', icon: 'scan', desc: 'Anatomía de la pantalla de picking: ubicación, SKU, cantidad y semáforo de colores.', pts: ['Leer ubicación A-12-03 (nave-pasillo-altura)', 'Reconocer códigos de color', 'Modo manos libres y anillo escáner'], practice: false },
+      { t: 'Doble escaneo obligatorio', icon: 'qr', desc: 'Práctica guiada: validar producto Y ubicación antes de depositar. Prerrequisito del error cero.', pts: ['Escaneo del producto (SKU)', 'Escaneo de la ubicación (estantería/lote)', 'Protocolo ante escaneo no válido'], practice: true },
+      { t: 'Voice-picking', icon: 'headphones', desc: 'Comandos de voz estándar, repetición y confirmación hablada de cantidades.', pts: ['Diccionario de comandos', 'Confirmación numérica hablada', 'Manejo de ruido ambiente'], practice: false },
+      { t: 'Gestión de incidencias', icon: 'alert', desc: 'Reporte rápido sin detener el flujo: roturas, daños, ubicaciones incorrectas.', pts: ['Los 4 tipos de incidencia', 'Fotografía y evidencia', 'Continuidad tras reportar'], practice: false },
+      { t: 'Rutas y olas', icon: 'route', desc: 'Cómo sigue la ruta guiada y qué hacer cuando se lanza una ola por zona.', pts: ['Seguir la polilínea de la app', 'No cortar pasillos', 'Prioridad de cut-off'], practice: false }
+    ];
+
+    var NAV = [
+      { id: 'dash', label: 'Dashboard Manager', icon: 'dashboard' },
+      { id: 'op', label: 'Terminal Operario', icon: 'scan' },
+      { id: 'routes', label: 'Enrutamiento y Olas', icon: 'route' },
+      { id: 'sim', label: 'Simulador de Campañas', icon: 'calendar' },
+      { id: 'waves', label: 'Planificador de Olas', icon: 'waves' },
+      { id: 'train', label: 'Inducción Operario', icon: 'grad' },
+      { id: 'kpis', label: 'KPIs Logísticos', icon: 'barchart' },
+      { id: 'inc', label: 'Incidencias', icon: 'alert' },
+      { id: 'int', label: 'Integraciones WMS/ERP', icon: 'plug' }
+    ];
+
+    /* ============ HELPERS ============ */
+    var toneMap = {
+      emerald: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+      red: 'bg-red-500/15 text-red-400 border-red-500/30',
+      amber: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+      sky: 'bg-sky-500/15 text-sky-400 border-sky-500/30',
+      slate: 'bg-slate-500/15 text-slate-400 border-slate-500/30'
+    };
+
+    function Badge(props) {
+      return <span className={'inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-xs font-semibold ' + (toneMap[props.tone] || toneMap.slate)}>{props.children}</span>;
+    }
+
+    function Card(props) {
+      return <div className={'bg-slate-900/70 border border-slate-800 rounded-2xl p-5 ' + (props.className || '')}>{props.children}</div>;
+    }
+
+    function StatCard(props) {
+      return (
+        <Card className="flex items-start gap-4">
+          <div className={'p-3 rounded-xl border ' + (toneMap[props.tone || 'emerald'])}><Icon name={props.icon} size={22} /></div>
+          <div>
+            <div className="text-xs uppercase tracking-wider text-slate-400">{props.label}</div>
+            <div className="text-3xl font-bold text-white">{props.value}</div>
+            <div className="text-xs text-slate-500">{props.sub}</div>
+          </div>
+        </Card>
+      );
+    }
+
+    function Slider(props) {
+      return (
+        <div className="mb-5">
+          <div className="flex justify-between text-sm mb-1">
+            <span className="text-slate-300 font-semibold">{props.label}</span>
+            <span className="text-emerald-400 font-bold">{props.value}{props.unit}</span>
+          </div>
+          <input type="range" min={props.min} max={props.max} step={props.step} value={props.value}
+            onChange={function (e) { props.onChange(parseFloat(e.target.value)); }} className="w-full accent-emerald-500" />
+        </div>
+      );
+    }
+
+    var tooltipStyle = { backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: 10, color: '#e2e8f0' };
+
+    /* ============ DASHBOARD ============ */
+    function Dashboard() {
+      return (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <StatCard icon="zap" label="Líneas / hora" value="142" sub="+8% vs. objetivo" tone="emerald" />
+            <StatCard icon="target" label="Precisión" value="99,4%" sub="1 error / 167 líneas" tone="sky" />
+            <StatCard icon="package" label="Pedidos en curso" value="37" sub="4 con riesgo SLA" tone="amber" />
+            <StatCard icon="route" label="Distancia / pedido" value="86 m" sub="−34% optimizado" tone="emerald" />
+            <StatCard icon="leaf" label="CO₂ evitado (semana)" value="128 kg" sub="por rutas óptimas" tone="emerald" />
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Card className="lg:col-span-2">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-white font-semibold flex items-center gap-2"><Icon name="activity" size={18} className="text-emerald-400" /> Productividad en vivo (LPH)</h3>
+                <Badge tone="emerald"><Icon name="trend" size={12} /> en tiempo real</Badge>
+              </div>
+              <div className="h-64">
+                <ResponsiveContainer>
+                  <ComposedChart data={LPH_DATA}>
+                    <defs>
+                      <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#10b981" stopOpacity={0.4} />
+                        <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" />
+                    <XAxis dataKey="h" stroke="#64748b" fontSize={12} />
+                    <YAxis stroke="#64748b" fontSize={12} />
+                    <Tooltip contentStyle={tooltipStyle} />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Area type="monotone" dataKey="lph" name="Líneas/hora" stroke="#10b981" strokeWidth={2} fill="url(#g1)" />
+                    <Line type="monotone" dataKey="obj" name="Objetivo" stroke="#f59e0b" strokeDasharray="6 4" dot={false} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+
+            <Card>
+              <h3 className="text-white font-semibold mb-4 flex items-center gap-2"><Icon name="boxes" size={18} className="text-sky-400" /> Estado de pedidos</h3>
+              <div className="h-56">
+                <ResponsiveContainer>
+                  <PieChart>
+                    <Pie data={ORDER_STATUS} dataKey="value" nameKey="name" innerRadius={55} outerRadius={80} paddingAngle={3} stroke="none">
+                      {ORDER_STATUS.map(function (e, i) { return <Cell key={i} fill={e.color} />; })}
+                    </Pie>
+                    <Tooltip contentStyle={tooltipStyle} />
+                    <Legend wrapperStyle={{ fontSize: 12, color: '#94a3b8' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <h3 className="text-white font-semibold mb-4 flex items-center gap-2"><Icon name="truck" size={18} className="text-amber-400" /> Cuellos de botella por zona</h3>
+              <div className="h-56">
+                <ResponsiveContainer>
+                  <BarChart data={BOTTLENECKS} layout="vertical">
+                    <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" />
+                    <XAxis type="number" domain={[0, 100]} stroke="#64748b" fontSize={12} />
+                    <YAxis type="category" dataKey="zona" width={120} stroke="#94a3b8" fontSize={12} />
+                    <Tooltip contentStyle={tooltipStyle} />
+                    <Bar dataKey="pct" name="% congestión" radius={[0, 8, 8, 0]}>
+                      {BOTTLENECKS.map(function (b, i) { return <Cell key={i} fill={b.pct > 75 ? '#ef4444' : b.pct > 50 ? '#f59e0b' : '#10b981'} />; })}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+
+            <Card>
+              <h3 className="text-white font-semibold mb-4 flex items-center gap-2"><Icon name="users" size={18} className="text-emerald-400" /> Ranking de operarios (LPH)</h3>
+              <div className="h-56">
+                <ResponsiveContainer>
+                  <BarChart data={OPERATORS} layout="vertical">
+                    <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" />
+                    <XAxis type="number" stroke="#64748b" fontSize={12} />
+                    <YAxis type="category" dataKey="name" width={90} stroke="#94a3b8" fontSize={12} />
+                    <Tooltip contentStyle={tooltipStyle} />
+                    <Bar dataKey="v" name="Líneas/hora" fill="#0ea5e9" radius={[0, 8, 8, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+          </div>
+
+          <Card>
+            <h3 className="text-white font-semibold mb-4 flex items-center gap-2"><Icon name="layers" size={18} className="text-sky-400" /> Pipeline de pedidos en vivo</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-slate-400 border-b border-slate-800">
+                    <th className="py-2 pr-4">Pedido</th><th className="py-2 pr-4">Cliente</th>
+                    <th className="py-2 pr-4">Estado</th><th className="py-2 pr-4 w-64">Progreso</th><th className="py-2">SLA restante</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {PIPELINE.map(function (o) {
+                    return (
+                      <tr key={o.id} className="border-b border-slate-800/60 text-slate-200">
+                        <td className="py-3 pr-4 font-mono text-sky-400">{o.id}</td>
+                        <td className="py-3 pr-4">{o.cliente}</td>
+                        <td className="py-3 pr-4"><Badge tone={o.tone}>{o.estado}</Badge></td>
+                        <td className="py-3 pr-4">
+                          <div className="w-full bg-slate-800 rounded-full h-3 overflow-hidden">
+                            <div className={'h-3 rounded-full ' + (o.prog === 100 ? 'bg-emerald-500' : o.tone === 'red' ? 'bg-red-500' : o.tone === 'amber' ? 'bg-amber-500' : 'bg-sky-500')} style={{ width: o.prog + '%' }} />
+                          </div>
+                        </td>
+                        <td className="py-3 font-semibold">{o.sla}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </div>
+      );
+    }
+
+    /* ============ TERMINAL OPERARIO ============ */
+    function Operario(props) {
+      var online = props.online, onLineDone = props.onLineDone;
+      var s1 = useState(0), taskIdx = s1[0], setTaskIdx = s1[1];
+      var s2 = useState(0), ph = s2[0], setPh = s2[1];
+      var s3 = useState({ despl: 0, busq: 0, esc: 0, dep: 0 }), times = s3[0], setTimes = s3[1];
+      var s4 = useState(null), flash = s4[0], setFlash = s4[1];
+      var s5 = useState(0), errors = s5[0], setErrors = s5[1];
+      var s6 = useState(true), voice = s6[0], setVoice = s6[1];
+      var s7 = useState(false), done = s7[0], setDone = s7[1];
+
+      var task = TASKS[taskIdx];
+      var phase = PHASES[ph];
+
+      useEffect(function () {
+        if (flash) { var t = setTimeout(function () { setFlash(null); }, 1200); return function () { clearTimeout(t); }; }
+      }, [flash]);
+
+      function advance(valid) {
+        if (valid === undefined) valid = true;
+        if (phase.scan && !valid) { setFlash('err'); setErrors(errors + 1); return; }
+        setTimes(function (prev) { var n = { despl: prev.despl, busq: prev.busq, esc: prev.esc, dep: prev.dep }; n[phase.key] = n[phase.key] + phase.secs; return n; });
+        setFlash('ok');
+        if (ph === PHASES.length - 1) {
+          onLineDone();
+          if (taskIdx === TASKS.length - 1) { setDone(true); }
+          else { setTaskIdx(taskIdx + 1); setPh(0); }
+        } else { setPh(ph + 1); }
+      }
+
+      if (done) {
+        return (
+          <div className="max-w-2xl mx-auto">
+            <Card className="text-center py-12 border-emerald-500/40">
+              <Icon name="check" size={72} className="mx-auto text-emerald-400 mb-4" />
+              <h2 className="text-3xl font-bold text-white mb-2">¡Pedido ORD-88412 completado!</h2>
+              <p className="text-slate-400 mb-6">{TASKS.length} líneas validadas · {errors} errores de escaneo</p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                {[['Desplazamiento', times.despl], ['Búsqueda', times.busq], ['Escaneo', times.esc], ['Depósito', times.dep]].map(function (p) {
+                  return (
+                    <div key={p[0]} className="bg-slate-800 rounded-xl p-3">
+                      <div className="text-2xl font-bold text-white">{p[1]}s</div>
+                      <div className="text-xs text-slate-400">{p[0]}</div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="text-emerald-400 font-semibold mb-4">
+                Tiempo de ciclo total: {times.despl + times.busq + times.esc + times.dep}s · {online ? 'Sincronizado con WMS ✓' : 'Guardado en cola offline ⏳'}
+              </div>
+              <button onClick={function () { setDone(false); setTaskIdx(0); setPh(0); setTimes({ despl: 0, busq: 0, esc: 0, dep: 0 }); setErrors(0); }}
+                className="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-lg">
+                Siguiente pedido <Icon name="arrow" size={20} className="inline" />
+              </button>
+            </Card>
+          </div>
+        );
+      }
+
+      return (
+        <div className="max-w-3xl mx-auto space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-slate-300">
+              <span className="font-mono text-sky-400 font-bold">ORD-88412</span>
+              <span className="text-slate-500">· Línea {taskIdx + 1}/{TASKS.length}</span>
+            </div>
+            <button onClick={function () { setVoice(!voice); }} className={'flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-semibold ' + (voice ? 'border-emerald-500/40 text-emerald-400 bg-emerald-500/10' : 'border-slate-700 text-slate-400')}>
+              <Icon name="headphones" size={16} /> Voice-Picking {voice ? 'ON' : 'OFF'}
+            </button>
+          </div>
+
+          {voice && (
+            <div className="bg-sky-500/10 border border-sky-500/30 rounded-xl px-4 py-2 text-sky-300 flex items-center gap-3">
+              <Icon name="volume" size={18} className="animate-pulse" />
+              <span className="text-sm">« Vaya a <b>{task.loc}</b> y escanee el producto <b>{task.sku}</b> »</span>
+            </div>
+          )}
+
+          <Card className={flash === 'err' ? 'border-red-500 bg-red-500/10' : flash === 'ok' ? 'border-emerald-500' : ''}>
+            <div className="text-center">
+              <div className="text-xs uppercase tracking-widest text-slate-400 mb-1">Ubicación objetivo</div>
+              <div className="text-7xl font-black text-white mb-2 font-mono">{task.loc}</div>
+              <div className="flex flex-wrap justify-center gap-2 mb-4">
+                <Badge tone={(task.zone === 'Frío' || task.zone === 'Congelado') ? 'sky' : 'slate'}>{task.zone}</Badge>
+                <Badge tone="amber">{task.temp}</Badge>
+                <Badge tone={task.weight.indexOf('Pesado') >= 0 ? 'red' : 'slate'}>{task.weight}</Badge>
+              </div>
+              <div className="bg-slate-800 rounded-xl p-4 mb-4">
+                <div className="text-2xl font-bold text-white">{task.desc}</div>
+                <div className="text-slate-400 mt-1">SKU: <span className="font-mono text-sky-400">{task.sku}</span></div>
+                <div className="text-5xl font-black text-emerald-400 mt-2">×{task.qty}</div>
+              </div>
+
+              <div className="flex items-center justify-center gap-1 mb-4 flex-wrap">
+                {PHASES.map(function (p, i) {
+                  return (
+                    <div key={i} className={'flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold ' + (i < ph ? 'bg-emerald-500/20 text-emerald-400' : i === ph ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40' : 'bg-slate-800 text-slate-500')}>
+                      {i < ph ? <Icon name="check" size={12} /> : <Icon name={p.icon} size={12} />} {p.label}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {flash === 'err' && (
+                <div className="mb-4 bg-red-600 text-white rounded-xl py-3 font-bold text-lg flex items-center justify-center gap-2">
+                  <Icon name="x" size={22} /> ESCANEO NO VÁLIDO — Reintenta (validación obligatoria)
+                </div>
+              )}
+
+              {phase.scan ? (
+                <div className="grid grid-cols-2 gap-3">
+                  <button onClick={function () { advance(true); }} className="py-6 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white text-xl font-black flex items-center justify-center gap-2">
+                    <Icon name="scan" size={26} /> Escaneo válido
+                  </button>
+                  <button onClick={function () { advance(false); }} className="py-6 rounded-2xl bg-red-600/80 hover:bg-red-600 text-white text-xl font-black flex items-center justify-center gap-2">
+                    <Icon name="x" size={26} /> Escaneo erróneo
+                  </button>
+                </div>
+              ) : (
+                <button onClick={function () { advance(); }} className="w-full py-6 rounded-2xl bg-sky-600 hover:bg-sky-500 text-white text-xl font-black flex items-center justify-center gap-2">
+                  <Icon name="chevron" size={26} /> Completar: {phase.label}
+                </button>
+              )}
+            </div>
+          </Card>
+
+          <div className="grid grid-cols-4 gap-3">
+            {[['Desplaz.', times.despl], ['Búsqueda', times.busq], ['Escaneo', times.esc], ['Depósito', times.dep]].map(function (p) {
+              return (
+                <div key={p[0]} className="bg-slate-900/70 border border-slate-800 rounded-xl p-3 text-center">
+                  <div className="text-xl font-bold text-white">{p[1]}s</div>
+                  <div className="text-xs text-slate-500">{p[0]}</div>
+                </div>
+              );
+            })}
+          </div>
+
+          <Card>
+            <div className="text-xs text-slate-400 uppercase tracking-wider mb-2">Reporte rápido de incidencia (sin detener el flujo)</div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              {['Rotura de stock', 'Producto dañado', 'Ubicación incorrecta', 'Equipo averiado'].map(function (t) {
+                return (
+                  <button key={t} className="py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 font-semibold text-sm hover:bg-red-500/20 flex items-center justify-center gap-2">
+                    <Icon name="alert" size={15} /> {t}
+                  </button>
+                );
+              })}
+            </div>
+          </Card>
+
+          <div className={'text-center text-sm font-semibold rounded-xl py-2 ' + (online ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400')}>
+            {online
+              ? <span><Icon name="wifi" size={14} className="inline" /> Conectado — los tiempos de ciclo se envían al WMS en caliente</span>
+              : <span><Icon name="wifioff" size={14} className="inline" /> Modo OFFLINE — datos registrados en caché local (SQLite) y sincronización automática al recuperar cobertura</span>}
+          </div>
+        </div>
+      );
+    }
+
+    /* ============ ENRUTAMIENTO ============ */
+    function RoutesView() {
+      var s1 = useState('gap'), strat = s1[0], setStrat = s1[1];
+      var s2 = useState(true), wavesOn = s2[0], setWavesOn = s2[1];
+      var st = STRATEGIES[strat];
+      return (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <StatCard icon="route" label="Distancia del recorrido" value={st.dist + ' m'} sub="vs. 214 m sin optimizar" tone="emerald" />
+            <StatCard icon="timer" label="T. desplazamiento" value={st.time + ' s'} sub="a 2 m/s" tone="sky" />
+            <StatCard icon="trend" label="Ahorro de distancia" value={'−' + st.red + '%'} sub={wavesOn ? 'Ola #42 agrupada' : 'Pedido individual'} tone="emerald" />
+            <StatCard icon="leaf" label="CO₂ evitado / 1.000 rutas" value={Math.round(st.red * 3.1) + ' kg'} sub="maquinaria eléctrica" tone="emerald" />
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Card className="lg:col-span-2">
+              <h3 className="text-white font-semibold mb-3 flex items-center gap-2"><Icon name="warehouse" size={18} className="text-emerald-400" /> Mapa del almacén — ruta calculada</h3>
+              <svg viewBox="0 0 640 360" className="w-full h-auto bg-slate-950 rounded-xl border border-slate-800">
+                <rect x="10" y="10" width="620" height="340" rx="12" fill="none" stroke="#1e293b" strokeWidth="2" />
+                {[70, 140, 210, 280].map(function (y, i) {
+                  return (
+                    <g key={i}>
+                      <rect x="90" y={y} width="460" height="26" rx="4" fill="#334155" />
+                      {[150, 250, 350, 450].map(function (x, j) { return <rect key={j} x={x} y={y + 3} width="60" height="20" rx="2" fill="#475569" />; })}
+                    </g>
+                  );
+                })}
+                <rect x="560" y="40" width="60" height="30" rx="6" fill="#10b981" opacity="0.8" />
+                <text x="590" y="59" fontSize="10" fill="#052e16" textAnchor="middle" fontWeight="bold">PACKING</text>
+                <circle cx="60" cy="340" r="8" fill="#0ea5e9" />
+                <text x="60" y="325" fontSize="10" fill="#7dd3fc" textAnchor="middle">INICIO</text>
+                <polyline key={strat} points={st.pts} fill="none" stroke="#10b981" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" className="route-anim" />
+                {PICK_POINTS.map(function (p, i) {
+                  return (
+                    <g key={i}>
+                      <circle cx={p.x} cy={p.y} r="10" fill="#f59e0b" opacity="0.25" className="ping" />
+                      <circle cx={p.x} cy={p.y} r="5" fill="#f59e0b" />
+                    </g>
+                  );
+                })}
+              </svg>
+              <div className="flex flex-wrap gap-2 mt-4">
+                {Object.keys(STRATEGIES).map(function (k) {
+                  return (
+                    <button key={k} onClick={function () { setStrat(k); }}
+                      className={'px-4 py-2 rounded-xl text-sm font-semibold border transition-all ' + (strat === k ? 'bg-emerald-600 text-white border-emerald-500' : 'bg-slate-800 text-slate-300 border-slate-700 hover:border-emerald-500/50')}>
+                      {STRATEGIES[k].label}
+                    </button>
+                  );
+                })}
+              </div>
+              <button onClick={function () { setWavesOn(!wavesOn); }} className={'mt-3 px-4 py-2 rounded-xl text-sm font-semibold border ' + (wavesOn ? 'bg-sky-600 text-white border-sky-500' : 'bg-slate-800 text-slate-300 border-slate-700')}>
+                <Icon name="layers" size={14} className="inline mr-1" /> Picking por olas (batch): {wavesOn ? 'ACTIVO' : 'INACTIVO'}
+              </button>
+            </Card>
+
+            <div className="space-y-4">
+              <Card>
+                <h3 className="text-white font-semibold mb-3 flex items-center gap-2"><Icon name="cpu" size={18} className="text-sky-400" /> Asignación automática de tareas</h3>
+                <div className="space-y-3">
+                  {[
+                    { op: 'L. García', near: 'Zona A · 12 m', task: 'ORD-88412 (3 líneas)', tag: 'Pesado ✓', tone: 'emerald' },
+                    { op: 'M. Torres', near: 'Zona B · 4 m', task: 'ORD-88413 (5 líneas)', tag: 'Frío ✓', tone: 'sky' },
+                    { op: 'J. Ruiz', near: 'Zona C · 28 m', task: 'Ola #42 (8 líneas)', tag: 'Batch ✓', tone: 'amber' }
+                  ].map(function (a) {
+                    return (
+                      <div key={a.op} className="bg-slate-800/60 rounded-xl p-3 border border-slate-700">
+                        <div className="flex justify-between items-center">
+                          <span className="text-white font-semibold text-sm">{a.op}</span>
+                          <Badge tone={a.tone}>{a.tag}</Badge>
+                        </div>
+                        <div className="text-xs text-slate-400 mt-1">{a.near} → {a.task}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-slate-500 mt-3">Motor: proximidad + carga + tipología (pesado / refrigerado / químico).</p>
+              </Card>
+              <Card>
+                <h3 className="text-white font-semibold mb-2 flex items-center gap-2"><Icon name="gauge" size={18} className="text-emerald-400" /> Impacto estimado</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between text-slate-300"><span>Líneas/hora</span><span className="text-emerald-400 font-bold">+22%</span></div>
+                  <div className="flex justify-between text-slate-300"><span>Distancia recorrida</span><span className="text-emerald-400 font-bold">−{st.red}%</span></div>
+                  <div className="flex justify-between text-slate-300"><span>Errores de ruta</span><span className="text-emerald-400 font-bold">−64%</span></div>
+                </div>
+              </Card>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    /* ============ SIMULADOR DE CAMPAÑAS ============ */
+    var CAMP_WEEKS = ['S44', 'S45', 'S46', 'S47', 'S48·BF', 'S49', 'S50', 'S51', 'S52·Nav', 'E01'];
+    var FACTORS = [1.1, 1.2, 1.25, 1.4, 2.6, 2.1, 2.3, 2.7, 3.0, 1.9];
+
+    function CampaignSim() {
+      var s1 = useState(2.2), growth = s1[0], setGrowth = s1[1];
+      var s2 = useState(18), ops = s2[0], setOps = s2[1];
+      var s3 = useState(7.5), shift = s3[0], setShift = s3[1];
+      var s4 = useState(true), auto = s4[0], setAuto = s4[1];
+
+      var base = 12000, lph = 142;
+      var effLph = lph * (auto ? 1.25 : 1);
+      var demand = Math.round(base * growth);
+      var capacity = Math.round(ops * effLph * shift);
+      var ratio = capacity / demand;
+      var reqOps = Math.ceil(demand / (effLph * shift));
+      var status = ratio >= 1.05 ? 'ok' : ratio >= 0.95 ? 'warn' : 'bad';
+      var chartData = FACTORS.map(function (f, i) { return { w: CAMP_WEEKS[i], demanda: Math.round(base * f), capacidad: capacity }; });
+
+      var recs = [];
+      if (ratio < 1) recs.push('Incorporar ' + Math.max(reqOps - ops, 1) + ' operarios temporales (ETT) para cubrir el pico');
+      if (ratio < 1.05) recs.push('Ampliar turno +1 h en semanas pico (S48 y S52)');
+      if (!auto) recs.push('Activar Voice-Picking / Pick-to-Light: +25% LPH estimado');
+      recs.push('Reubicar top-50 SKUs de campaña a zonas doradas (pasillos 1–4)');
+      if (growth >= 2.5) recs.push('Pre-lanzar olas nocturnas y batching por zona frío/congelado');
+      recs.push('Refuerzo de reposición 2 h antes del pico de cut-off');
+
+      return (
+        <div className="space-y-6">
+          <div className={'rounded-2xl border p-4 flex items-center gap-4 ' + (status === 'ok' ? 'bg-emerald-500/10 border-emerald-500/40' : status === 'warn' ? 'bg-amber-500/10 border-amber-500/40' : 'bg-red-500/10 border-red-500/40')}>
+            <Icon name={status === 'ok' ? 'check' : 'alert'} size={28} className={status === 'ok' ? 'text-emerald-400' : status === 'warn' ? 'text-amber-400' : 'text-red-400'} />
+            <div>
+              <div className={'font-black text-lg ' + (status === 'ok' ? 'text-emerald-400' : status === 'warn' ? 'text-amber-400' : 'text-red-400')}>
+                {status === 'ok' ? 'CAPACIDAD SUFICIENTE' : status === 'warn' ? 'CAPACIDAD JUSTA — riesgo en picos' : 'DÉFICIT DE CAPACIDAD — plan de choque necesario'}
+              </div>
+              <div className="text-sm text-slate-400">Ratio capacidad/demanda: {Math.round(ratio * 100)}% · Escenario: campaña ×{growth.toFixed(1)} sobre base diaria</div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <StatCard icon="calendar" label="Demanda pico" value={demand.toLocaleString('es')} sub="líneas/día en campaña" tone="amber" />
+            <StatCard icon="users" label="Capacidad actual" value={capacity.toLocaleString('es')} sub={ops + ' operarios × ' + shift + ' h × ' + Math.round(effLph) + ' LPH'} tone="sky" />
+            <StatCard icon="zap" label="Operarios necesarios" value={String(reqOps)} sub={reqOps > ops ? '+' + (reqOps - ops) + ' temporales' : (ops - reqOps) + ' de holgura'} tone={reqOps > ops ? 'red' : 'emerald'} />
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Card>
+              <h3 className="text-white font-semibold mb-4 flex items-center gap-2"><Icon name="gauge" size={18} className="text-emerald-400" /> Parámetros de campaña</h3>
+              <Slider label="Multiplicador de demanda" value={growth} min={1} max={4} step={0.1} onChange={setGrowth} unit="×" />
+              <Slider label="Operarios disponibles" value={ops} min={8} max={40} step={1} onChange={setOps} unit="" />
+              <Slider label="Horas de turno" value={shift} min={6} max={12} step={0.5} onChange={setShift} unit=" h" />
+              <button onClick={function () { setAuto(!auto); }} className={'w-full mt-2 py-3 rounded-xl font-bold text-sm border ' + (auto ? 'bg-emerald-600 text-white border-emerald-500' : 'bg-slate-800 text-slate-300 border-slate-700')}>
+                <Icon name="zap" size={14} className="inline mr-1" /> Voice / Pick-to-Light: {auto ? 'ACTIVO (+25% LPH)' : 'INACTIVO'}
+              </button>
+              <p className="text-xs text-slate-500 mt-3">Base diaria normal: 12.000 líneas · LPH estándar 142.</p>
+            </Card>
+
+            <Card className="lg:col-span-2">
+              <h3 className="text-white font-semibold mb-4 flex items-center gap-2"><Icon name="trend" size={18} className="text-sky-400" /> Demanda vs. capacidad (Nov — Ene)</h3>
+              <div className="h-64">
+                <ResponsiveContainer>
+                  <LineChart data={chartData}>
+                    <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" />
+                    <XAxis dataKey="w" stroke="#64748b" fontSize={11} />
+                    <YAxis stroke="#64748b" fontSize={11} />
+                    <Tooltip contentStyle={tooltipStyle} />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Line type="monotone" dataKey="demanda" name="Demanda (líneas/día)" stroke="#f59e0b" strokeWidth={3} dot={{ r: 3 }} />
+                    <Line type="monotone" dataKey="capacidad" name="Capacidad configurada" stroke="#10b981" strokeWidth={2} strokeDasharray="6 4" dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+          </div>
+
+          <Card>
+            <h3 className="text-white font-semibold mb-3 flex items-center gap-2"><Icon name="zap" size={18} className="text-amber-400" /> Plan de choque recomendado</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {recs.map(function (r, i) {
+                return (
+                  <div key={i} className="flex items-start gap-2 bg-slate-800/60 rounded-xl p-3 border border-slate-700 text-sm text-slate-200">
+                    <Icon name="check" size={16} className="text-emerald-400 mt-0.5 shrink-0" /> {r}
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        </div>
+      );
+    }
+
+    /* ============ PLANIFICADOR DE OLAS ============ */
+    function WavePlanner() {
+      var s1 = useState(['ORD-88421', 'ORD-88424']), sel = s1[0], setSel = s1[1];
+      var s2 = useState('Cutoff'), crit = s2[0], setCrit = s2[1];
+      var s3 = useState(2), opsPerWave = s3[0], setOpsPerWave = s3[1];
+      var s4 = useState([]), waves = s4[0], setWaves = s4[1];
+      var effLph = 177.5;
+
+      function toggle(id) {
+        if (sel.indexOf(id) >= 0) setSel(sel.filter(function (x) { return x !== id; }));
+        else setSel(sel.concat([id]));
+      }
+
+      var selected = PENDING_ORDERS.filter(function (o) { return sel.indexOf(o.id) >= 0; });
+      var totLines = selected.reduce(function (a, o) { return a + o.lineas; }, 0);
+      var totUnits = selected.reduce(function (a, o) { return a + o.und; }, 0);
+      var estMin = Math.max(5, Math.round((totLines / (effLph * opsPerWave)) * 60));
+
+      function generate() {
+        if (!selected.length) return;
+        var w = {
+          id: 'WAVE-' + (43 + waves.length), orders: selected.map(function (o) { return o.id; }),
+          lineas: totLines, und: totUnits, crit: crit, ops: opsPerWave, estMin: estMin,
+          dist: Math.round(totLines * 21 / opsPerWave), estado: 'Borrador', prog: 0
+        };
+        setWaves([w].concat(waves));
+        setSel([]);
+      }
+
+      function launch(id) {
+        setWaves(waves.map(function (w) { return w.id === id ? { id: w.id, orders: w.orders, lineas: w.lineas, und: w.und, crit: w.crit, ops: w.ops, estMin: w.estMin, dist: w.dist, estado: 'Lanzada', prog: 12 } : w; }));
+      }
+
+      function minCut(orderIds) {
+        var best = 24;
+        orderIds.forEach(function (id) {
+          var o = PENDING_ORDERS.find(function (x) { return x.id === id; });
+          if (o) {
+            var parts = o.cutoff.split(':');
+            var v = parseInt(parts[0], 10) + parseInt(parts[1], 10) / 60;
+            if (v < best) best = v;
+          }
+        });
+        var hh = Math.floor(best), mm = Math.round((best - hh) * 60);
+        return (hh < 10 ? '0' + hh : hh) + ':' + (mm < 10 ? '0' + mm : mm);
+      }
+
+      return (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Card className="lg:col-span-2">
+              <h3 className="text-white font-semibold mb-3 flex items-center gap-2"><Icon name="waves" size={18} className="text-sky-400" /> Pedidos pendientes — seleccionar para agrupar</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-slate-400 border-b border-slate-800">
+                      <th className="py-2"></th><th className="py-2 pr-3">Pedido</th><th className="py-2 pr-3">Cliente</th>
+                      <th className="py-2 pr-3">Líneas</th><th className="py-2 pr-3">Zona</th><th className="py-2 pr-3">Temp.</th>
+                      <th className="py-2 pr-3">Cut-off</th><th className="py-2">Prioridad</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {PENDING_ORDERS.map(function (o) {
+                      var on = sel.indexOf(o.id) >= 0;
+                      return (
+                        <tr key={o.id} onClick={function () { toggle(o.id); }} className={'border-b border-slate-800/60 cursor-pointer ' + (on ? 'bg-emerald-500/5' : '')}>
+                          <td className="py-2 pr-2">
+                            <span className={'inline-flex items-center justify-center w-5 h-5 rounded-md border ' + (on ? 'bg-emerald-600 border-emerald-500 text-white' : 'border-slate-600')}>
+                              {on && <Icon name="check" size={14} />}
+                            </span>
+                          </td>
+                          <td className="py-2 pr-3 font-mono text-sky-400">{o.id}</td>
+                          <td className="py-2 pr-3 text-slate-200">{o.cliente}</td>
+                          <td className="py-2 pr-3 text-white font-bold">{o.lineas}</td>
+                          <td className="py-2 pr-3"><Badge tone={o.zona === 'Pesado' ? 'red' : (o.zona === 'Frío' || o.zona === 'Congelado') ? 'sky' : 'slate'}>{o.zona}</Badge></td>
+                          <td className="py-2 pr-3 text-slate-400">{o.temp}</td>
+                          <td className="py-2 pr-3 font-semibold">{o.cutoff}</td>
+                          <td className="py-2"><Badge tone={o.prio === 'Alta' ? 'red' : o.prio === 'Media' ? 'amber' : 'slate'}>{o.prio}</Badge></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+
+            <Card>
+              <h3 className="text-white font-semibold mb-3 flex items-center gap-2"><Icon name="cpu" size={18} className="text-emerald-400" /> Criterio de agrupación</h3>
+              <div className="flex flex-wrap gap-2 mb-4">
+                {['Cutoff', 'Zona', 'Temperatura', 'Ruta', 'Cliente'].map(function (c) {
+                  return (
+                    <button key={c} onClick={function () { setCrit(c); }} className={'px-3 py-1.5 rounded-lg text-xs font-bold border ' + (crit === c ? 'bg-sky-600 text-white border-sky-500' : 'bg-slate-800 text-slate-300 border-slate-700')}>{c}</button>
+                  );
+                })}
+              </div>
+              <Slider label="Operarios asignados a la ola" value={opsPerWave} min={1} max={6} step={1} onChange={setOpsPerWave} unit="" />
+              <div className="bg-slate-800/60 rounded-xl p-4 border border-slate-700 space-y-1.5 text-sm mb-4">
+                <div className="flex justify-between text-slate-300"><span>Pedidos seleccionados</span><span className="font-bold text-white">{selected.length}</span></div>
+                <div className="flex justify-between text-slate-300"><span>Líneas totales</span><span className="font-bold text-white">{totLines}</span></div>
+                <div className="flex justify-between text-slate-300"><span>Unidades totales</span><span className="font-bold text-white">{totUnits}</span></div>
+                <div className="flex justify-between text-slate-300"><span>Duración estimada</span><span className="font-bold text-emerald-400">{estMin} min</span></div>
+              </div>
+              <button onClick={generate} disabled={!selected.length} className="w-full py-3 rounded-xl bg-emerald-600 disabled:opacity-40 hover:bg-emerald-500 text-white font-black flex items-center justify-center gap-2">
+                <Icon name="waves" size={18} /> Generar ola
+              </button>
+            </Card>
+          </div>
+
+          <Card>
+            <h3 className="text-white font-semibold mb-4 flex items-center gap-2"><Icon name="layers" size={18} className="text-amber-400" /> Olas del turno</h3>
+            {!waves.length && <p className="text-slate-500 text-sm">No hay olas generadas. Selecciona pedidos y pulsa «Generar ola».</p>}
+            <div className="space-y-3">
+              {waves.map(function (w) {
+                return (
+                  <div key={w.id} className="bg-slate-800/60 border border-slate-700 rounded-xl p-4">
+                    <div className="flex flex-wrap items-center gap-3 mb-2">
+                      <span className="font-mono font-black text-white">{w.id}</span>
+                      <Badge tone={w.estado === 'Lanzada' ? 'emerald' : 'slate'}>{w.estado}</Badge>
+                      <Badge tone="sky">{w.crit}</Badge>
+                      <span className="text-xs text-slate-400">{w.orders.length} pedidos · {w.lineas} líneas · {w.und} und · {w.ops} operarios · {w.dist} m</span>
+                      {w.estado === 'Borrador' && (
+                        <button onClick={function () { launch(w.id); }} className="ml-auto px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold flex items-center gap-1">
+                          <Icon name="play" size={12} /> Lanzar
+                        </button>
+                      )}
+                    </div>
+                    <div className="w-full bg-slate-900 rounded-full h-3 overflow-hidden">
+                      <div className="h-3 rounded-full bg-emerald-500 transition-all" style={{ width: w.prog + '%' }} />
+                    </div>
+                    <div className="text-xs text-slate-500 mt-1">Duración estimada: {w.estMin} min · Cut-off más exigente: {minCut(w.orders)}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        </div>
+      );
+    }
+
+    /* ============ INDUCCIÓN / FORMACIÓN ============ */
+    function Induction() {
+      var s1 = useState(0), cur = s1[0], setCur = s1[1];
+      var s2 = useState([]), doneMods = s2[0], setDoneMods = s2[1];
+      var s3 = useState(false), practiceOK = s3[0], setPracticeOK = s3[1];
+      var s4 = useState(null), msg = s4[0], setMsg = s4[1];
+
+      var mod = TRAIN_MODULES[cur];
+      var progress = Math.round((doneMods.length / TRAIN_MODULES.length) * 100);
+      var certified = doneMods.length === TRAIN_MODULES.length;
+
+      function complete() {
+        if (mod.practice && !practiceOK) return;
+        if (doneMods.indexOf(cur) < 0) setDoneMods(doneMods.concat([cur]));
+        setPracticeOK(false); setMsg(null);
+        if (cur < TRAIN_MODULES.length - 1) setCur(cur + 1);
+      }
+
+      if (certified) {
+        return (
+          <div className="max-w-2xl mx-auto">
+            <Card className="text-center py-12 border-amber-500/40">
+              <Icon name="award" size={72} className="mx-auto text-amber-400 mb-4" />
+              <h2 className="text-3xl font-black text-white mb-2">¡Operario certificado!</h2>
+              <p className="text-slate-400 mb-6">Superados los {TRAIN_MODULES.length} módulos de inducción TRAZA//CO2 con validación práctica de doble escaneo.</p>
+              <div className="bg-slate-800 rounded-2xl p-6 border border-slate-700 mb-6 text-left">
+                <div className="text-xs uppercase tracking-widest text-slate-500 mb-2">Certificado de inducción</div>
+                <div className="text-xl font-bold text-white">Operario en formación · Almacén MAD-01</div>
+                <div className="text-sm text-slate-400 mt-1">Fecha: 19/10/2026 · Validez: 12 meses · Ref. TRZ-IND-2026-0142</div>
+                <div className="text-xs text-slate-500 mt-2">Firma supervisor: ______________________</div>
+              </div>
+              <button onClick={function () { setCur(0); setDoneMods([]); setPracticeOK(false); setMsg(null); }} className="px-6 py-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold">
+                Reiniciar formación
+              </button>
+            </Card>
+          </div>
+        );
+      }
+
+      return (
+        <div className="max-w-3xl mx-auto space-y-4">
+          <Card>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-white font-semibold flex items-center gap-2"><Icon name="grad" size={18} className="text-amber-400" /> Progreso de inducción</h3>
+              <span className="text-sm font-bold text-amber-400">{doneMods.length}/{TRAIN_MODULES.length}</span>
+            </div>
+            <div className="w-full bg-slate-800 rounded-full h-4 overflow-hidden">
+              <div className="h-4 rounded-full bg-gradient-to-r from-amber-500 to-emerald-500 transition-all" style={{ width: progress + '%' }} />
+            </div>
+          </Card>
+
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {TRAIN_MODULES.map(function (m, i) {
+              return (
+                <button key={i} onClick={function () { setCur(i); setMsg(null); }}
+                  className={'flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap border ' + (doneMods.indexOf(i) >= 0 ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400' : i === cur ? 'bg-sky-600 border-sky-500 text-white' : 'bg-slate-800 border-slate-700 text-slate-400')}>
+                  {doneMods.indexOf(i) >= 0 ? <Icon name="check" size={13} /> : <Icon name={m.icon} size={13} />} {i + 1}. {m.t}
+                </button>
+              );
+            })}
+          </div>
+
+          <Card>
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-3 rounded-xl bg-sky-500/15 border border-sky-500/30"><Icon name={mod.icon} size={22} className="text-sky-400" /></div>
+              <div>
+                <div className="text-xs text-slate-500 uppercase tracking-wider">Módulo {cur + 1} de {TRAIN_MODULES.length}</div>
+                <h3 className="text-xl font-bold text-white">{mod.t}</h3>
+              </div>
+            </div>
+            <p className="text-slate-300 mb-4">{mod.desc}</p>
+            <div className="space-y-2 mb-5">
+              {mod.pts.map(function (p, i) {
+                return (
+                  <div key={i} className="flex items-center gap-2 text-sm text-slate-200 bg-slate-800/60 rounded-lg px-3 py-2 border border-slate-700">
+                    <Icon name="check" size={15} className="text-emerald-400 shrink-0" /> {p}
+                  </div>
+                );
+              })}
+            </div>
+
+            {mod.practice && (
+              <div className="bg-slate-800/60 border border-slate-700 rounded-xl p-4 mb-4">
+                <div className="text-sm font-bold text-white mb-2 flex items-center gap-2"><Icon name="qr" size={15} className="text-sky-400" /> Práctica obligatoria: doble escaneo</div>
+                <p className="text-xs text-slate-400 mb-3">El sistema ha presentado <span className="font-mono text-sky-400">SKU-9921-A</span> en <span className="font-mono text-white">B-04-07</span>. Un operario ha escaneado un producto similar de la misma estantería. ¿Qué validez aplicas?</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <button onClick={function () { setPracticeOK(true); setMsg('ok'); }} className="py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold">Validar solo si SKU exacto ✓</button>
+                  <button onClick={function () { setMsg('err'); }} className="py-3 rounded-xl bg-red-600/70 hover:bg-red-600 text-white font-bold">Aceptar producto similar ✗</button>
+                </div>
+                {msg === 'err' && <div className="mt-3 text-red-400 text-sm font-bold bg-red-500/10 border border-red-500/30 rounded-lg p-2">Incorrecto: un SKU similar NO es válido. Bloqueo de línea y re-escaneo obligatorio.</div>}
+                {msg === 'ok' && practiceOK && <div className="mt-3 text-emerald-400 text-sm font-bold bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-2">¡Correcto! Error cero = validación exacta de producto + ubicación.</div>}
+              </div>
+            )}
+
+            <button onClick={complete} disabled={mod.practice && !practiceOK}
+              className="w-full py-4 rounded-xl bg-emerald-600 disabled:opacity-40 hover:bg-emerald-500 text-white text-lg font-black flex items-center justify-center gap-2">
+              {mod.practice && !practiceOK ? 'Completa la práctica para continuar' : <span>Completar módulo <Icon name="arrow" size={20} /></span>}
+            </button>
+          </Card>
+        </div>
+      );
+    }
+
+    /* ============ KPIs ============ */
+    function KPIs() {
+      function stTone(st) { return st === 'ok' ? 'emerald' : st === 'warn' ? 'amber' : 'red'; }
+      function Gauge(props) {
+        return (
+          <Card className="text-center">
+            <div className="text-xs uppercase tracking-wider text-slate-400 mb-2">{props.label}</div>
+            <div className="h-36">
+              <ResponsiveContainer>
+                <RadialBarChart innerRadius="70%" outerRadius="100%" data={[{ value: props.value, fill: props.color }]} startAngle={90} endAngle={-270}>
+                  <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
+                  <RadialBar dataKey="value" cornerRadius={12} background={{ fill: '#1e293b' }} />
+                </RadialBarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="text-2xl font-black -mt-24 relative" style={{ color: props.color }}>{props.text}</div>
+            <div className="h-10" />
+          </Card>
+        );
+      }
+      return (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Gauge label="Precisión de picking" value={99.4} color="#10b981" text="99,4%" />
+            <Gauge label="Utilización de operario" value={68} color="#0ea5e9" text="68%" />
+            <Gauge label="Perfect Order Rate" value={97.2} color="#f59e0b" text="97,2%" />
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <h3 className="text-white font-semibold mb-4 flex items-center gap-2"><Icon name="clock" size={18} className="text-amber-400" /> Desglose del tiempo de ciclo (s/línea)</h3>
+              <div className="h-64">
+                <ResponsiveContainer>
+                  <BarChart data={CYCLE_DATA}>
+                    <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" />
+                    <XAxis dataKey="h" stroke="#64748b" fontSize={12} />
+                    <YAxis stroke="#64748b" fontSize={12} />
+                    <Tooltip contentStyle={tooltipStyle} />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Bar dataKey="despl" stackId="a" name="Desplazamiento" fill="#0ea5e9" />
+                    <Bar dataKey="busq" stackId="a" name="Búsqueda" fill="#f59e0b" />
+                    <Bar dataKey="esc" stackId="a" name="Escaneo" fill="#8b5cf6" />
+                    <Bar dataKey="emb" stackId="a" name="Depósito/Embalaje" fill="#10b981" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+            <Card>
+              <h3 className="text-white font-semibold mb-4 flex items-center gap-2"><Icon name="target" size={18} className="text-emerald-400" /> LPH real vs. objetivo</h3>
+              <div className="h-64">
+                <ResponsiveContainer>
+                  <LineChart data={LPH_DATA}>
+                    <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" />
+                    <XAxis dataKey="h" stroke="#64748b" fontSize={12} />
+                    <YAxis stroke="#64748b" fontSize={12} />
+                    <Tooltip contentStyle={tooltipStyle} />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Line type="monotone" dataKey="lph" name="LPH real" stroke="#10b981" strokeWidth={3} dot={{ r: 3 }} />
+                    <Line type="monotone" dataKey="obj" name="Objetivo" stroke="#ef4444" strokeDasharray="6 4" dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+          </div>
+
+          <Card>
+            <h3 className="text-white font-semibold mb-4 flex items-center gap-2"><Icon name="barchart" size={18} className="text-sky-400" /> Catálogo completo de KPIs</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-slate-400 border-b border-slate-800">
+                    <th className="py-2 pr-4">Categoría</th><th className="py-2 pr-4">KPI</th>
+                    <th className="py-2 pr-4">Fórmula</th><th className="py-2 pr-4">Objetivo</th>
+                    <th className="py-2 pr-4">Actual</th><th className="py-2">Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {KPI_TABLE.map(function (k, i) {
+                    return (
+                      <tr key={i} className="border-b border-slate-800/60 text-slate-200">
+                        <td className="py-2.5 pr-4"><Badge tone="slate">{k.cat}</Badge></td>
+                        <td className="py-2.5 pr-4 font-semibold">{k.kpi}</td>
+                        <td className="py-2.5 pr-4 font-mono text-xs text-slate-400">{k.formula}</td>
+                        <td className="py-2.5 pr-4">{k.target}</td>
+                        <td className="py-2.5 pr-4 font-bold text-white">{k.value}</td>
+                        <td className="py-2.5"><Badge tone={stTone(k.st)}>{k.st === 'ok' ? 'Óptimo' : k.st === 'warn' ? 'Atención' : 'Crítico'}</Badge></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </div>
+      );
+    }
+
+    /* ============ INCIDENCIAS ============ */
+    function Incidents() {
+      var s1 = useState([
+        { id: 'INC-341', tipo: 'Rotura de stock', loc: 'B-04-07', sev: 'Alta', estado: 'Abierta', who: 'M. Torres' },
+        { id: 'INC-340', tipo: 'Ubicación incorrecta', loc: 'C-08-02', sev: 'Media', estado: 'En revisión', who: 'J. Ruiz' },
+        { id: 'INC-338', tipo: 'Producto dañado', loc: 'A-12-03', sev: 'Media', estado: 'Resuelta', who: 'L. García' },
+        { id: 'INC-336', tipo: 'Equipo averiado', loc: 'Transpaletar TP-09', sev: 'Alta', estado: 'Resuelta', who: 'Mantenimiento' }
+      ]), list = s1[0], setList = s1[1];
+
+      function report(tipo) {
+        setList([{ id: 'INC-' + (342 + list.length), tipo: tipo, loc: TASKS[list.length % TASKS.length].loc, sev: 'Alta', estado: 'Abierta', who: 'Operario actual' }].concat(list));
+      }
+      function resolve(id) {
+        setList(list.map(function (i) { return i.id === id ? { id: i.id, tipo: i.tipo, loc: i.loc, sev: i.sev, estado: 'Resuelta', who: i.who } : i; }));
+      }
+
+      return (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <StatCard icon="alert" label="Incidencias abiertas" value={String(list.filter(function (i) { return i.estado !== 'Resuelta'; }).length)} sub="sin bloqueo del flujo" tone="red" />
+            <StatCard icon="timer" label="MTTR" value="7 min" sub="objetivo ≤ 10 min" tone="emerald" />
+            <StatCard icon="activity" label="Tasa incidencia" value="3,2 ‰" sub="por 1.000 líneas" tone="sky" />
+          </div>
+          <Card>
+            <h3 className="text-white font-semibold mb-3">Reporte rápido desde terminal del operario</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+              {['Rotura de stock', 'Producto dañado', 'Ubicación incorrecta', 'Equipo averiado'].map(function (t) {
+                return (
+                  <button key={t} onClick={function () { report(t); }} className="py-4 rounded-xl bg-red-500/10 border border-red-500/40 text-red-300 font-bold hover:bg-red-500/20 flex items-center justify-center gap-2">
+                    <Icon name="plus" size={16} /> {t}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="space-y-3">
+              {list.map(function (i) {
+                return (
+                  <div key={i.id} className="flex flex-wrap items-center gap-3 bg-slate-800/60 border border-slate-700 rounded-xl p-4">
+                    <span className="font-mono text-sky-400 font-bold w-20">{i.id}</span>
+                    <Badge tone={i.sev === 'Alta' ? 'red' : 'amber'}>{i.sev}</Badge>
+                    <span className="text-white font-semibold flex-1 min-w-max">{i.tipo}</span>
+                    <span className="text-slate-400 text-sm flex items-center gap-1"><Icon name="pin" size={13} /> {i.loc}</span>
+                    <span className="text-slate-500 text-sm">{i.who}</span>
+                    <Badge tone={i.estado === 'Resuelta' ? 'emerald' : 'amber'}>{i.estado}</Badge>
+                    {i.estado !== 'Resuelta' && (
+                      <button onClick={function () { resolve(i.id); }} className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold">Resolver</button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        </div>
+      );
+    }
+
+    /* ============ INTEGRACIONES ============ */
+    function Integrations(props) {
+      var online = props.online, pending = props.pending;
+      var conns = [
+        { name: 'WMS Manhattan', status: online ? 'Bidireccional · OK' : 'Cola local activa', lat: '42 ms', tone: online ? 'emerald' : 'amber', icon: 'database' },
+        { name: 'ERP SAP S/4HANA', status: online ? 'Stock sincronizado' : 'Pendiente de reintentar', lat: '88 ms', tone: online ? 'emerald' : 'amber', icon: 'boxes' },
+        { name: 'Voice-Picking (Vocolo)', status: 'Activo · latencia 120 ms', lat: '120 ms', tone: 'emerald', icon: 'volume' },
+        { name: 'Pick-to-Light (pasillo 3)', status: 'Activo · 24 luces', lat: '8 ms', tone: 'emerald', icon: 'zap' },
+        { name: 'Anillos escáner Zebra RS6000', status: '4 conectados vía BLE', lat: '—', tone: 'sky', icon: 'scan' },
+        { name: 'Transporte / TMS', status: 'Órdenes de carga emitidas', lat: '95 ms', tone: 'emerald', icon: 'truck' }
+      ];
+      return (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <StatCard icon={online ? 'wifi' : 'wifioff'} label="Estado de conexión" value={online ? 'ONLINE' : 'OFFLINE'} sub={online ? 'Sincronización en caliente' : 'Cola local: ' + pending + ' operaciones'} tone={online ? 'emerald' : 'amber'} />
+            <StatCard icon="refresh" label="Operaciones en cola" value={String(pending)} sub="se sincronizan al recuperar red" tone={pending > 0 ? 'amber' : 'emerald'} />
+            <StatCard icon="shield" label="Integridad de datos" value="100%" sub="transacciones idempotentes + checksum" tone="emerald" />
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <h3 className="text-white font-semibold mb-4 flex items-center gap-2"><Icon name="plug" size={18} className="text-sky-400" /> Conectores API (bidireccionales)</h3>
+              <div className="space-y-3">
+                {conns.map(function (c) {
+                  return (
+                    <div key={c.name} className="flex items-center gap-3 bg-slate-800/60 border border-slate-700 rounded-xl p-3">
+                      <div className={'p-2 rounded-lg ' + toneMap[c.tone]}><Icon name={c.icon} size={16} /></div>
+                      <div className="flex-1">
+                        <div className="text-white font-semibold text-sm">{c.name}</div>
+                        <div className="text-xs text-slate-400">{c.status}</div>
+                      </div>
+                      <span className="text-xs font-mono text-slate-500">{c.lat}</span>
+                      <span className={'w-2.5 h-2.5 rounded-full ' + (online || c.tone === 'emerald' ? 'bg-emerald-400' : 'bg-amber-400') + ' animate-pulse'} />
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+            <div className="space-y-6">
+              <Card>
+                <h3 className="text-white font-semibold mb-4 flex items-center gap-2"><Icon name="activity" size={18} className="text-emerald-400" /> Latencia de API (ms)</h3>
+                <div className="h-48">
+                  <ResponsiveContainer>
+                    <LineChart data={LATENCY}>
+                      <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" />
+                      <XAxis dataKey="t" stroke="#64748b" fontSize={11} />
+                      <YAxis stroke="#64748b" fontSize={11} />
+                      <Tooltip contentStyle={tooltipStyle} />
+                      <Legend wrapperStyle={{ fontSize: 12 }} />
+                      <Line type="monotone" dataKey="wms" name="WMS" stroke="#10b981" strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey="erp" name="ERP" stroke="#0ea5e9" strokeWidth={2} dot={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+              <Card>
+                <h3 className="text-white font-semibold mb-3 flex items-center gap-2"><Icon name="cpu" size={18} className="text-amber-400" /> Arquitectura escalable</h3>
+                <div className="flex flex-wrap gap-2">
+                  {['API Gateway', 'Autoscaling K8s', 'Redis (caché en caliente)', 'PostgreSQL + particionado', 'Cola offline SQLite (PWA)', 'Edge sync con CRDT', 'JWT + OAuth2', 'Offline-first · 0 latencia local'].map(function (b) {
+                    return <span key={b} className="px-3 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-xs font-semibold text-slate-300">{b}</span>;
+                  })}
+                </div>
+                <p className="text-xs text-slate-500 mt-3">Diseñado para picos tipo Black Friday/Navidad: colas de eventos + reintentos exponenciales + sincronización diferencial al reconectar.</p>
+              </Card>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    /* ============ APP PRINCIPAL ============ */
+    function App() {
+      var s1 = useState('dash'), view = s1[0], setView = s1[1];
+      var s2 = useState(true), online = s2[0], setOnline = s2[1];
+      var s3 = useState(false), syncing = s3[0], setSyncing = s3[1];
+      var s4 = useState(0), pending = s4[0], setPending = s4[1];
+      var s5 = useState(null), toast = s5[0], setToast = s5[1];
+
+      useEffect(function () {
+        if (online && pending > 0) {
+          setSyncing(true);
+          var t = setTimeout(function () {
+            setSyncing(false); setPending(0);
+            setToast('Sincronización completada con WMS/ERP ✓');
+            setTimeout(function () { setToast(null); }, 2600);
+          }, 1800);
+          return function () { clearTimeout(t); };
+        }
+      }, [online, pending]);
+
+      var navItem = NAV.find(function (n) { return n.id === view; });
+
+      return (
+        <div className="min-h-screen bg-slate-950 text-slate-200 flex">
+          <aside className="w-64 hidden lg:flex flex-col border-r border-slate-800 bg-slate-900/50 p-4">
+            <div className="flex items-center gap-3 mb-6 px-2">
+              <svg viewBox="0 0 64 64" className="w-11 h-11 shrink-0">
+                <rect width="64" height="64" rx="14" fill="#022c22" stroke="#059669" strokeWidth="2" />
+                <polyline points="12,50 12,20 30,20 30,42 46,42 46,14" fill="none" stroke="#34d399" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+                <circle cx="12" cy="50" r="4" fill="#f59e0b" />
+                <circle cx="46" cy="14" r="4" fill="#10b981" />
+              </svg>
+              <div>
+                <div className="text-white font-black text-lg leading-tight">TRAZA<span className="text-emerald-400">//CO2</span></div>
+                <div className="text-xs text-slate-500">Eficiencia en Picking · v2.1</div>
+              </div>
+            </div>
+            <nav className="space-y-1 flex-1 overflow-y-auto">
+              {NAV.map(function (n) {
+                return (
+                  <button key={n.id} onClick={function () { setView(n.id); }}
+                    className={'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all ' + (view === n.id ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/40' : 'text-slate-400 hover:bg-slate-800 hover:text-white')}>
+                    <Icon name={n.icon} size={18} /> {n.label}
+                  </button>
+                );
+              })}
+            </nav>
+            <div className="text-xs text-slate-600 px-2 space-y-1 pt-4 border-t border-slate-800">
+              <div className="flex items-center gap-2"><Icon name="warehouse" size={12} /> Almacén MAD-01 · Turno mañana</div>
+              <div className="flex items-center gap-2"><Icon name="clock" size={12} /> Actualizado 10:34</div>
+              <div className="text-slate-500 font-semibold pt-1">© 2026 Miguel Ángel Layunta López</div>
+            </div>
+          </aside>
+
+          <main className="flex-1 flex flex-col min-w-0">
+            <header className="flex items-center justify-between border-b border-slate-800 bg-slate-900/60 px-6 py-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <Icon name={navItem.icon} size={22} className="text-emerald-400 shrink-0" />
+                <h1 className="text-xl font-bold text-white truncate">{navItem.label}</h1>
+                <span className="hidden md:inline text-xs text-slate-500 font-semibold">TRAZA//CO2 · M.Á. Layunta López</span>
+              </div>
+              <div className="flex items-center gap-3">
+                {syncing && <span className="flex items-center gap-2 text-sky-400 text-sm font-semibold"><Icon name="refresh" size={16} className="animate-spin" /> Sincronizando…</span>}
+                {pending > 0 && !syncing && <Badge tone="amber"><Icon name="send" size={12} /> {pending} en cola</Badge>}
+                <button onClick={function () { setOnline(!online); }}
+                  className={'flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm border transition-all ' + (online ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/40 hover:bg-amber-500/20')}>
+                  <Icon name={online ? 'wifi' : 'wifioff'} size={16} /> {online ? 'ONLINE' : 'OFFLINE'}
+                </button>
+              </div>
+            </header>
+
+            <div className="flex gap-2 p-4 lg:hidden overflow-x-auto">
+              {NAV.map(function (n) {
+                return (
+                  <button key={n.id} onClick={function () { setView(n.id); }} className={'px-3 py-2 rounded-lg text-xs font-bold whitespace-nowrap ' + (view === n.id ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-300')}>{n.label}</button>
+                );
+              })}
+            </div>
+
+            <div className="p-6 flex-1 overflow-auto">
+              {view === 'dash' && <Dashboard />}
+              {view === 'op' && <Operario online={online} onLineDone={function () { setPending(function (p) { return p + 1; }); }} />}
+              {view === 'routes' && <RoutesView />}
+              {view === 'sim' && <CampaignSim />}
+              {view === 'waves' && <WavePlanner />}
+              {view === 'train' && <Induction />}
+              {view === 'kpis' && <KPIs />}
+              {view === 'inc' && <Incidents />}
+              {view === 'int' && <Integrations online={online} pending={pending} />}
+            </div>
+          </main>
+
+          {toast && (
+            <div className="fixed bottom-6 right-6 bg-emerald-600 text-white px-5 py-3 rounded-xl shadow-2xl font-bold flex items-center gap-2">
+              <Icon name="check" size={18} /> {toast}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    var el = document.getElementById('root');
+    if (ReactDOM.createRoot) { ReactDOM.createRoot(el).render(<App />); }
+    else { ReactDOM.render(<App />, el); }
+  </script>
+</body>
+</html>
