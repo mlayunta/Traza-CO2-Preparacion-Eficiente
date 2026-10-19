@@ -1,0 +1,23 @@
+{
+  "name": "TRAZA//CO2 — Eficiencia en Picking",
+  "short_name": "TRAZA//CO2",
+  "description": "Suite de eficiencia en preparación de pedidos: enrutamiento inteligente, olas, KPIs en vivo, voice-picking y modo offline-first con sincronización WMS/ERP.",
+  "author": "Miguel Ángel Layunta López",
+  "version": "2.1.0",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#020617",
+  "theme_color": "#059669",
+  "lang": "es-ES",
+  "categories": ["business", "productivity"],
+  "icons": [
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Terminal Operario", "url": "./index.html" },
+    { "name": "Dashboard Manager", "url": "./index.html" }
+  ]
+}
